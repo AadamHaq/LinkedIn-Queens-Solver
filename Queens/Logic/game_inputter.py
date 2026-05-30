@@ -20,8 +20,8 @@ def input_solution(driver, solution):
     Returns: None
     """
 
-    board = driver.find_element(By.ID, "queens-grid")
-    cells = board.find_elements(By.CLASS_NAME, "queens-cell-with-border")
+    board = driver.find_element(By.ID, "queens-game-board")
+    cells = board.find_elements(By.CSS_SELECTOR, '[data-testid^="cell-"]')
     actions = ActionChains(driver)
 
     for row, col in solution:

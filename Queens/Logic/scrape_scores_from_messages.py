@@ -151,24 +151,7 @@ def score_scraper(driver, name):
 
     Description: Combines previous functions and scrapes all scores
     """
-    driver.get("https://www.linkedin.com/feed/")
-    time.sleep(2)
-
-    # --- Right-click 5px from the left edge, vertically centered ---
-    window_height = driver.execute_script("return window.innerHeight;")
-    y_middle = window_height // 2  # midpoint of the visible window
-
-    actions = ActionChains(driver)
-    actions.move_by_offset(5, y_middle).click().perform()
-    actions.move_by_offset(-5, -y_middle).perform()  # reset mouse offset
-
-    time.sleep(1)
-
-    messaging_icon = driver.find_element(
-        By.XPATH, "//li-icon[@type='nav-small-messaging-icon']"
-    )  # Click messaging button
-    messaging_icon.click()
-
+    driver.get("https://www.linkedin.com/messaging/")
     time.sleep(3)
 
     search_bar = driver.find_element(

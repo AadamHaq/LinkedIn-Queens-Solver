@@ -105,7 +105,7 @@ def scraper(driver):
     driver.execute_script("document.body.style.zoom='100%'")
     time.sleep(1)
 
-    board = driver.find_element(By.ID, "queens-grid")
+    board = driver.find_element(By.ID, "queens-game-board")
 
     style = board.get_attribute("style")
     row_match = re.search(r"--rows:\s*(\d+)", style)

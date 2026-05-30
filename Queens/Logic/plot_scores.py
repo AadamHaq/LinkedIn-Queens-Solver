@@ -106,7 +106,7 @@ def write_csv(results):
     file_exists = csv_file.exists()
 
     # Define the column order explicitly:
-    columns = ["Day", "DoW", "Me", "HK", "AH", "AS", "JM", "ZK", "Backtracking"]
+    columns = ["Day", "DoW", "Me", "HK", "AH", "AS", "JM", "Backtracking"]
 
     with open(csv_file, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=columns)
@@ -160,9 +160,7 @@ def plot_graph():
 
     # Plot each player with distinct styling (skip Backtracking)
     player_cols = [
-        col
-        for col in df_seconds.columns
-        if col not in ["Day", "DoW", "Backtracking", "ZK"]
+        col for col in df_seconds.columns if col not in ["Day", "DoW", "Backtracking"]
     ]
     for idx, col in enumerate(player_cols):
         ax.plot(

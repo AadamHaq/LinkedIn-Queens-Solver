@@ -71,7 +71,7 @@ def get_image(driver, path):
     driver.execute_script("document.body.style.zoom='100%'")
     time.sleep(1)
 
-    board = driver.find_element(By.ID, "queens-grid")
+    board = driver.find_element(By.ID, "queens-game-board")
 
     board.screenshot(path)
     print("Screenshot obtained")

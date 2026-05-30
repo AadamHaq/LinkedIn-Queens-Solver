@@ -1,9 +1,20 @@
 import time
 
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+# The results overlay and all share modals live inside the interop iframe,
+
+_IFRAME = '[data-testid="interop-iframe"]'
+
+
+def _switch_to_iframe(driver):
+    iframe = driver.find_element(By.CSS_SELECTOR, _IFRAME)
+    driver.switch_to.frame(iframe)
 
 
 def share_score(driver, name):
@@ -14,78 +25,142 @@ def share_score(driver, name):
         driver: Selenium driver that was initialised
         name: Name of group chat that the score will be sent to
 
-    Description: Removes pop up for streak freeze, scrolls down and shares score
-    to a group chat name entered.
+    Description: Switches into the LinkedIn interop iframe, waits for the
+    results screen, then shares the score to the named group chat.
     """
 
     try:
-        skip_btn = driver.find_element(
-            By.XPATH, "//div[@role='dialog']//button[.//span[normalize-space()='Skip']]"
+        _switch_to_iframe(driver)
+        print("Switched into interop iframe")
+    except Exception as e:
+        print(f"Could not switch to iframe: {e}")
+        return
+
+    print("Waiting for results screen...")
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ".pr-game-results__components")
+            )
+        )
+        print("Results screen detected")
+    except TimeoutException:
+        print("Results screen did not load in time")
+        driver.switch_to.default_content()
+        return
+
+    time.sleep(1)
+
+    # Dismiss streak-freeze / bonus popup if present
+    try:
+        skip_btn = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    "//button[normalize-space()='Skip' or normalize-space()='No thanks' or normalize-space()='Decline' or normalize-space()='Not now']",
+                )
+            )
         )
         skip_btn.click()
-        print("✅ Bonus popup closed")
-    except NoSuchElementException:
-        # Popup not present, ignore
+        print("Bonus popup closed")
+        time.sleep(1)
+    except TimeoutException:
+        print("No bonus popup present")
+
+    # Click the Send button.
+    # The button has no text — its label is a sibling <span class="pr-top__text t-14">Send</span>.
+    # Find it via its SVG icon attribute.
+    print("Looking for Send button...")
+    try:
+        send_btn = WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script(
+                "const svg=document.querySelector('[data-test-icon=\"send-privately-medium\"]');"
+                "return svg?svg.closest('button'):null;"
+            )
+        )
+        send_btn.click()
+        print("Clicked Send button")
+        time.sleep(3.5)
+    except TimeoutException:
+        print("Could not find Send button")
+        try:
+            driver.save_screenshot("debug_send_button.png")
+        except Exception:
+            pass
+        driver.switch_to.default_content()
+        return
+
+    # Select recipient — try pre-populated list first, then type-ahead
+    send_to = None
+    try:
+        send_to = WebDriverWait(driver, 5).until(
+            lambda d: d.execute_script(
+                "for(const d of document.querySelectorAll('.msg-connections-typeahead__entity-description')){"
+                "  const dt=d.querySelector('dt');"
+                "  if(dt&&dt.textContent.includes(arguments[0])){"
+                "    let el=d;while(el&&el.tagName!=='BUTTON')el=el.parentElement;return el;"
+                "  }}"
+                "return null;",
+                name,
+            )
+        )
+    except TimeoutException:
         pass
 
-    # Click on page at crown photo (not a hyperlink) so scrolling works
-    image_section = driver.find_element(By.CSS_SELECTOR, ".pr-top__image")
-    ActionChains(driver).move_to_element(image_section).click().perform()
-    time.sleep(0.5)
+    if send_to:
+        driver.execute_script("arguments[0].click()", send_to)
+        print(f"Selected recipient: {name}")
+    else:
+        input_box = None
+        try:
+            input_box = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "input[placeholder='Type a name']")
+                )
+            )
+        except TimeoutException:
+            pass
 
-    # 3 DOWN arrow keys to scroll the page or reveal elements
-    body = driver.find_element(By.TAG_NAME, "body")
-    for _ in range(3):
-        body.send_keys(Keys.DOWN)
-        time.sleep(0.3)
+        if not input_box:
+            print(f"Could not find recipient input for: {name}")
+            driver.switch_to.default_content()
+            return
 
-    print("Clicking share button")
-    send_button = driver.find_element(
-        By.XPATH,
-        "//span[normalize-space()='Send']/preceding-sibling::button",  # Used 'Send' text instead of button due to errors
-    )
-    send_button.click()
-
-    time.sleep(3.5)
-
-    try:
-        send_to = driver.find_element(
-            By.XPATH,
-            f"//div[@class='msg-connections-typeahead__entity-description']"
-            f"[.//dt[contains(normalize-space(), '{name}')]]"  # Name of person to send to and click
-            "/ancestor::button",
-        )
-        send_to.click()
-    except Exception:
-        input_box = driver.find_element(
-            By.XPATH, "//input[@placeholder='Type a name']"
-        )  # Type group chat name
-        input_box.send_keys(name + Keys.ENTER)
-
+        input_box.send_keys(name)
         time.sleep(1)
 
-        send_to = driver.find_element(
-            By.XPATH,
-            f"//div[@class='msg-connections-typeahead__entity-description']"
-            f"[.//dt[contains(normalize-space(), '{name}')]]"
-            "/ancestor::div[contains(@class, 'msg-connections-typeahead__search-result-row')]"
-            "//label[contains(@class, 'msg-connections-typeahead__checkbox-multisend')]",
+        result = driver.execute_script(
+            "for(const d of document.querySelectorAll('.msg-connections-typeahead__entity-description')){"
+            "  const dt=d.querySelector('dt');"
+            "  if(dt&&dt.textContent.includes(arguments[0])){"
+            "    const row=d.closest('[class*=\"search-result-row\"]');"
+            "    if(row){const lbl=row.querySelector('[class*=\"checkbox\"]');if(lbl)return lbl;}"
+            "    return d;"
+            "  }}"
+            "return null;",
+            name,
         )
-        send_to.click()
+        if result:
+            driver.execute_script("arguments[0].click()", result)
+            print(f"Typed and selected recipient: {name}")
+        else:
+            print(f"Could not find recipient: {name}")
+            driver.switch_to.default_content()
+            return
+
+    # Send the message
+    time.sleep(0.5)
     try:
-        time.sleep(0.5)
         textbox = driver.find_element(
-            By.XPATH,
-            "//div[contains(@class, 'msg-form__contenteditable') and @contenteditable='true']",  # Text box for message
+            By.CSS_SELECTOR, ".msg-form__contenteditable[contenteditable='true']"
         )
-        textbox.click()
-
-        # Tab to get to the send button. This was the easiest way as clicking the send button would not work
-        actions = ActionChains(driver)
-        actions.send_keys(Keys.TAB).pause(0.2).send_keys(Keys.ENTER).perform()
-
-        print("Tab + Enter sent successfully.")
-        time.sleep(2)
-
+        driver.execute_script("arguments[0].focus()", textbox)
+        time.sleep(0.2)
     except Exception:
-        print("Could not find user to send to")
+        pass
+
+    ActionChains(driver).send_keys(Keys.TAB).pause(0.2).send_keys(Keys.ENTER).perform()
+    print("Message sent successfully")
+    time.sleep(2)
+
+    driver.switch_to.default_content()
