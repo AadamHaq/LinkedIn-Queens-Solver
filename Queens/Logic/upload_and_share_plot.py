@@ -49,12 +49,16 @@ def get_fun_fact(df):
     # --- Fastest solve today ---
     today_valid = today[players].dropna()
     if not today_valid.empty:
-        fastest_player = today_valid.idxmin()
         fastest_time = today_valid.min()
-        name = alias_map.get(fastest_player, fastest_player)
-        fun_facts.append(
-            f"🏆 Fastest today: {name} with {int(fastest_time // 60)}:{int(fastest_time % 60):02d}"
-        )
+        fastest_players = today_valid[today_valid == fastest_time].index.tolist()
+        t_fmt = f"{int(fastest_time // 60)}:{int(fastest_time % 60):02d}"
+        if len(fastest_players) == 1:
+            name = alias_map.get(fastest_players[0], fastest_players[0])
+            fun_facts.append(f"🏆 Fastest today: {name} with {t_fmt}")
+        else:
+            names = [alias_map.get(p, p) for p in fastest_players]
+            name_str = ", ".join(names[:-1]) + " and " + names[-1]
+            fun_facts.append(f"🏆 Joint fastest today: {name_str} with {t_fmt}")
 
     # --- Bad day check (> 5:00) ---
     if not today_valid.empty:
@@ -68,8 +72,16 @@ def get_fun_fact(df):
                 name_str = ", ".join(names[:-1]) + " and " + names[-1]
             # Use the maximum time among the bad players for display
             max_secs = bad_day.max()
+            haris_alias = os.getenv("ALIAS_HARIS_K", "HK")
+            haris_bad = haris_alias in bad_day.index
+            if haris_bad and len(bad_day) == 1:
+                suffix = "... well, that one makes sense 😅"
+            elif haris_bad:
+                suffix = "... Haris we get, but the rest have no excuse 😅"
+            else:
+                suffix = "... maybe Haris played on their phone"
             fun_facts.append(
-                f"😬 {name_str} had a bad day with a time of up to {int(max_secs // 60)}:{int(max_secs % 60):02d}... maybe Haris played on their phone"
+                f"😬 {name_str} had a bad day with a time of up to {int(max_secs // 60)}:{int(max_secs % 60):02d}{suffix}"
             )
 
     # # --- Most improved (today vs average of last 14 days) ---
@@ -131,6 +143,47 @@ def get_fun_fact(df):
                 fun_facts.append(
                     f"⬇️ {name} went from 1st to last overnight... someone had a bad sleep!"
                 )
+
+    # --- Close race (top two within 1s) ---
+    if len(today_valid) >= 2:
+        today_sorted = today_valid.sort_values()
+        gap = int(today_sorted.iloc[1]) - int(today_sorted.iloc[0])
+        if 0 < gap <= 1:
+            p1 = alias_map.get(today_sorted.index[0], today_sorted.index[0])
+            p2 = alias_map.get(today_sorted.index[1], today_sorted.index[1])
+            fun_facts.append(
+                f"⚡ {p1} pipped {p2} by just {gap}s today — absolute photo finish! 📸"
+            )
+
+    # --- Comeback (yesterday last → today first) ---
+    if len(df_secs) >= 2:
+        yesterday_all = df_secs.iloc[-2][players].dropna()
+        if len(yesterday_all) > 1 and not today_valid.empty:
+            yesterday_loser = yesterday_all.idxmax()
+            today_winner = today_valid.idxmin()
+            if yesterday_loser == today_winner:
+                name = alias_map.get(yesterday_loser, yesterday_loser)
+                fun_facts.append(
+                    f"👑 {name} went from last to first overnight... redemption arc complete! 🔥"
+                )
+
+    # --- Exact same time (any two or more players) ---
+    if not today_valid.empty:
+        for t, count in today_valid.value_counts().items():
+            if count >= 2:
+                tied = today_valid[today_valid == t].index.tolist()
+                names = [alias_map.get(p, p) for p in tied]
+                name_str = (
+                    ", ".join(names[:-1])
+                    + (" and " if len(names) > 1 else "")
+                    + names[-1]
+                )
+                both_or_all = "both" if len(tied) == 2 else "all"
+                t_fmt = f"{int(t // 60)}:{int(t % 60):02d}"
+                fun_facts.append(
+                    f"👀 {name_str} {both_or_all} finished in exactly {t_fmt}... either someone's copying or the matrix glitched 🤖"
+                )
+                break
 
     # --- Beat or tied Quincy (always shown when it occurs) ---
     if "Backtracking" in df_secs.columns:
