@@ -152,9 +152,9 @@ def get_fun_fact(df):
                 )
                 if len(beaters) == 1:
                     p_fmt = f"{int(today[beaters[0]] // 60)}:{int(today[beaters[0]] % 60):02d}"
-                    return f"🤖 Humans win! {name_str} beat Quincy with {p_fmt} vs Quincy's {bt_fmt}! 🎉"
+                    return f"🤖 {name_str} solved it in {p_fmt} vs Quincy's {bt_fmt}. Quincy does not accept this result 😤"
                 else:
-                    return f"🤖 Humans win! {name_str} all beat Quincy's time of {bt_fmt}! 🎉"
+                    return f"🤖 Multiple humans - {name_str} - have beaten Quincy's time of {bt_fmt}. A coordinated uprising... this was not in the training data 📋"
             elif tiers:
                 names = [alias_map.get(p, p) for p in tiers]
                 name_str = (
@@ -174,6 +174,37 @@ def get_fun_fact(df):
 
 # Path to the plot image
 image_path = r"C:\Users\user\OneDrive\Documents\GitHub\LinkedIn-Queens-Solver\queens_scores_plot.png"
+
+
+def _send_streak_reminder(driver, missing_players, alias_map):
+    if not missing_players:
+        return
+
+    textbox = driver.find_element(
+        By.XPATH,
+        "//div[contains(@class, 'msg-form__contenteditable') and @contenteditable='true']",
+    )
+    textbox.click()
+    time.sleep(0.5)
+
+    for p in missing_players:
+        first_name = alias_map.get(p, p)
+        ActionChains(driver).send_keys(f"@{first_name}").perform()
+        time.sleep(1.5)  # wait for @mention dropdown to appear
+        ActionChains(driver).send_keys(Keys.ENTER).send_keys(" ").perform()
+        time.sleep(0.3)
+
+    ActionChains(driver).send_keys(
+        "you didn't play today! Make sure to play tomorrow to protect your streak! 🎮"
+    ).perform()
+    time.sleep(0.5)
+
+    actions = ActionChains(driver)
+    for _ in range(6):
+        actions.send_keys(Keys.TAB).pause(0.2)
+    actions.send_keys(Keys.ENTER).perform()
+    time.sleep(2)
+    print(f"Streak reminder sent to: {[alias_map.get(p, p) for p in missing_players]}")
 
 
 def upload_plot(driver):
@@ -233,6 +264,19 @@ def upload_plot(driver):
     actions.send_keys(Keys.ENTER).perform()
     print("✅ Image sent via Tab + Enter.")
     time.sleep(5)
+
+    # Streak reminder for anyone who didn't play today
+    alias_map = {}
+    for key, value in os.environ.items():
+        if key.startswith("ALIAS_"):
+            first_name = key.replace("ALIAS_", "").split("_")[0].capitalize()
+            alias_map[value] = first_name
+    players = [p for p in df.columns if p not in ["Day", "DoW", "Backtracking"]]
+    today_row = df.iloc[-1]
+    missing = [
+        p for p in players if pd.isna(today_row[p]) or str(today_row[p]).strip() == ""
+    ]
+    _send_streak_reminder(driver, missing, alias_map)
 
 
 if __name__ == "__main__":
