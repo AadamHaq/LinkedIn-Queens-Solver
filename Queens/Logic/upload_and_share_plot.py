@@ -132,6 +132,38 @@ def get_fun_fact(df):
                     f"⬇️ {name} went from 1st to last overnight... someone had a bad sleep!"
                 )
 
+    # --- Beat or tied Quincy (always shown when it occurs) ---
+    if "Backtracking" in df_secs.columns:
+        bt_time = time_to_seconds(df_secs.iloc[-1]["Backtracking"])
+        if not pd.isna(bt_time):
+            bt_fmt = f"{int(bt_time // 60)}:{int(bt_time % 60):02d}"
+            beaters = [
+                p for p in players if not pd.isna(today[p]) and today[p] < bt_time
+            ]
+            tiers = [
+                p for p in players if not pd.isna(today[p]) and today[p] == bt_time
+            ]
+            if beaters:
+                names = [alias_map.get(p, p) for p in beaters]
+                name_str = (
+                    names[0]
+                    if len(names) == 1
+                    else ", ".join(names[:-1]) + " and " + names[-1]
+                )
+                if len(beaters) == 1:
+                    p_fmt = f"{int(today[beaters[0]] // 60)}:{int(today[beaters[0]] % 60):02d}"
+                    return f"🤖 Humans win! {name_str} beat Quincy with {p_fmt} vs Quincy's {bt_fmt}! 🎉"
+                else:
+                    return f"🤖 Humans win! {name_str} all beat Quincy's time of {bt_fmt}! 🎉"
+            elif tiers:
+                names = [alias_map.get(p, p) for p in tiers]
+                name_str = (
+                    names[0]
+                    if len(names) == 1
+                    else ", ".join(names[:-1]) + " and " + names[-1]
+                )
+                return f"🤖 {name_str} matched Quincy exactly at {bt_fmt}! Not bad for a human... 🤝"
+
     # --- Pick one fact to show ---
     if fun_facts:
         print(fun_facts)
