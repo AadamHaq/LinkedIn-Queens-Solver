@@ -106,7 +106,7 @@ def write_csv(results):
     file_exists = csv_file.exists()
 
     # Define the column order explicitly:
-    columns = ["Day", "DoW", "Me", "HK", "AH", "AS", "JM", "Backtracking"]
+    columns = ["Day", "DoW"] + list(alias_dict.values())
 
     with open(csv_file, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=columns)
