@@ -1,0 +1,7 @@
+Training run 2026-06-11 21:04
+Args: {'bc_epochs': 1, 'dagger_rounds': 1, 'dagger_epochs': 1, 'orderings': 2, 'batch_size': 256, 'lr': 0.001, 'val_frac': 0.1, 'seed': 42}
+Boards: 341 train / 37 val
+After BC: val solve rate 0.0% [7x7: 0/4, 8x8: 0/12, 9x9: 0/10, 10x10: 0/8, 11x11: 0/3]
+After DAgger 1: val solve rate 0.0% [7x7: 0/4, 8x8: 0/12, 9x9: 0/10, 10x10: 0/8, 11x11: 0/3] (+58 states)
+Best val solve rate: 0.0%
+Weights saved to C:\Users\user\OneDrive\Documents\GitHub\LinkedIn-Queens-Solver\Queens\Logic\Solvers\RL_Resources\Weights\imitation_policy.pt

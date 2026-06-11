@@ -12,6 +12,7 @@ dependencies = [
     "pandas>=2.3.3",
     "pulp>=3.3.0",
     "selenium>=4.39.0",
+    "torch>=2.12.0",
     "webdriver-manager>=4.0.2",
     "z3>=0.2.0",
 ]
