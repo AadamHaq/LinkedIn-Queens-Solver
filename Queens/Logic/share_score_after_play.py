@@ -127,19 +127,24 @@ def share_score(driver, name):
             return
 
         input_box.send_keys(name)
-        time.sleep(1)
 
-        result = driver.execute_script(
-            "for(const d of document.querySelectorAll('.msg-connections-typeahead__entity-description')){"
-            "  const dt=d.querySelector('dt');"
-            "  if(dt&&dt.textContent.includes(arguments[0])){"
-            "    const row=d.closest('[class*=\"search-result-row\"]');"
-            "    if(row){const lbl=row.querySelector('[class*=\"checkbox\"]');if(lbl)return lbl;}"
-            "    return d;"
-            "  }}"
-            "return null;",
-            name,
-        )
+        result = None
+        try:
+            result = WebDriverWait(driver, 10).until(
+                lambda d: d.execute_script(
+                    "for(const d of document.querySelectorAll('.msg-connections-typeahead__entity-description')){"
+                    "  const dt=d.querySelector('dt');"
+                    "  if(dt&&dt.textContent.includes(arguments[0])){"
+                    "    const row=d.closest('[class*=\"search-result-row\"]');"
+                    "    if(row){const lbl=row.querySelector('[class*=\"checkbox\"]');if(lbl)return lbl;}"
+                    "    return d;"
+                    "  }}"
+                    "return null;",
+                    name,
+                )
+            )
+        except TimeoutException:
+            pass
         if result:
             driver.execute_script("arguments[0].click()", result)
             print(f"Typed and selected recipient: {name}")
